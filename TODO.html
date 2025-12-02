@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>To-Do List</title>
+
+  <style>
+ :root{
+  --bg: #f5f7fa;
+  --card: #ffffff;
+  --accent: #3b5bdb;         
+  --light-blue: #e7f5ff;     
+  --text: #1e293b;
+  --muted: #6b7280;
+  --border: #dbe4f0;
+}
+*{
+  margin:0;
+  padding:0;
+  box-sizing:border-box;
+}
+body{
+  font-family: Inter, system-ui, sans-serif;
+  background: var(--bg);
+  min-height:100vh;
+  display:flex;
+  justify-content:center;
+  padding:20px;
+}
+.container{
+  width:100%;
+  max-width:720px;
+}
+header h1{
+  text-align:center;
+  font-size:2.3rem;
+  margin-bottom:18px;
+  color:var(--text);
+  font-weight:700;
+}
+h1{
+  margin:10px 0;
+  color:#000;
+  font-size:1.4rem;
+}
+.card{
+  background: var(--card);
+  padding:18px;
+  border-radius:14px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.06);
+}
+.input-row{
+  display:flex;
+  gap:10px;
+  margin-bottom:16px;
+}
+input[type="text"]{
+  flex:1;
+  padding:14px;
+  border:1px solid var(--border);
+  border-radius:10px;
+  font-size:1rem;
+  background:white;
+}
+button{
+  background: var(--accent);
+  color:#fff;
+  border:0;
+  padding:10px 16px;
+  border-radius:10px;
+  cursor:pointer;
+  font-weight:600;
+}
+button.secondary{
+  background:#fff;
+  color:var(--accent);
+  border:1px solid var(--accent);
+}
+ul.todo-list{
+  list-style:none;
+  margin-top:10px;
+}
+
+li.todo{
+  background: var(--light-blue);
+  padding:12px;
+  border-radius:10px;
+  display:flex;
+  align-items:center;
+  gap:12px;
+  border-left:6px solid var(--accent);
+}
+
+li.todo + li.todo{
+  margin-top:10px;
+}
+
+.text.completed{
+  text-decoration:line-through;
+  opacity:0.6;
+}
+.actions{
+  margin-left: auto;
+  display: flex;
+  gap: 10px;
+}
+.actions button{
+  background: transparent;
+  border: none;
+  padding: 4px;
+  cursor:pointer;
+}
+.actions button svg{
+  width:20px;
+  height:20px;
+  stroke:#555;
+}
+.meta{
+  margin-top:15px;
+  display:flex;
+  justify-content:space-between;
+  color:var(--muted);
+}
+.filters{
+  display:flex;
+  gap:10px;
+  margin-top:15px;
+}
+.filters button{
+  background:#fff;
+  color:var(--accent);
+  border:1px solid var(--accent);
+  padding:8px 12px;
+  border-radius:8px;
+}
+.filters button.active{
+  background:var(--accent);
+  color:#fff;
+}
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <header>
+      <h1>Todos</h1>
+    </header>
+
+    <h1>Create Task</h1>
+
+    <section class="card">
+      <div class="input-row">
+        <input id="newTodo" type="text" placeholder="What needs to be done?" />
+        <button id="addBtn">Add</button>
+      </div>
+
+      <h1>My Tasks</h1>
+      <ul id="list" class="todo-list"></ul>
+
+      <div class="meta">
+        <div id="count">0 items</div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button id="clearCompleted" class="secondary">Clear completed</button>
+          <button id="clearAll" class="secondary">Clear all</button>
+        </div>
+      </div>
+
+      <div class="filters">
+        <button data-filter="all" class="active">All</button>
+        <button data-filter="active">Active</button>
+        <button data-filter="completed">Completed</button>
+      </div>
+
+    </section>
+  </div>
+
+
+<script>
+const KEY = 'simple_todo_items_v1';
+
+const elements = {
+  input: document.getElementById('newTodo'),
+  addBtn: document.getElementById('addBtn'),
+  list: document.getElementById('list'),
+  count: document.getElementById('count'),
+  clearCompleted: document.getElementById('clearCompleted'),
+  clearAll: document.getElementById('clearAll'),
+  filters: document.querySelectorAll('.filters button')
+};
+
+let todos = loadTodos();
+let filter = 'all';
+
+render();
+
+elements.addBtn.addEventListener('click', onAdd);
+elements.input.addEventListener('keydown', e => { if(e.key === 'Enter') onAdd(); });
+elements.clearCompleted.addEventListener('click', () => { todos = todos.filter(t => !t.done); saveAndRender(); });
+elements.clearAll.addEventListener('click', () => { if(confirm('Clear all tasks?')){ todos = []; saveAndRender(); }});
+elements.filters.forEach(btn => btn.addEventListener('click', () => { setFilter(btn.dataset.filter); }));
+
+function onAdd(){
+  const text = elements.input.value.trim();
+  if(!text) return;
+  const item = { id: Date.now().toString(36), text, done:false };
+  todos.unshift(item);
+  elements.input.value = '';
+  saveAndRender();
+}
+
+function toggleDone(id){
+  const t = todos.find(x => x.id === id);
+  if(t) t.done = !t.done;
+  saveAndRender();
+}
+
+function removeTodo(id){
+  todos = todos.filter(x => x.id !== id);
+  saveAndRender();
+}
+
+function saveAndRender(){ saveTodos(); render(); }
+
+function saveTodos(){ localStorage.setItem(KEY, JSON.stringify(todos)); }
+
+function loadTodos(){ return JSON.parse(localStorage.getItem(KEY) || "[]"); }
+
+function setFilter(f){
+  filter = f;
+  elements.filters.forEach(b => b.classList.toggle('active', b.dataset.filter === f));
+  render();
+}
+
+function render(){
+  const shown = todos.filter(t => filter === 'active' ? !t.done : filter === 'completed' ? t.done : true);
+
+  elements.list.innerHTML = '';
+
+  shown.forEach(t => {
+    const li = document.createElement('li');
+    li.className = 'todo';
+
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.checked = t.done;
+    checkbox.addEventListener('change', () => toggleDone(t.id));
+
+    const text = document.createElement('div');
+    text.className = 'text' + (t.done ? ' completed' : '');
+    text.textContent = t.text;
+
+    const actions = document.createElement('div');
+    actions.className = 'actions';
+
+    // **Normal Dustbin Icon**
+    const del = document.createElement('button');
+    del.innerHTML = `
+      <svg fill="none" viewBox="0 0 24 24" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round"
+        d="M3 6h18M9 6v12m6-12v12M8 6l1-2h6l1 2M5 6l1 14h12l1-14" />
+      </svg>`;
+    del.addEventListener('click', () => removeTodo(t.id));
+
+    actions.appendChild(del);
+
+    li.appendChild(checkbox);
+    li.appendChild(text);
+    li.appendChild(actions);
+
+    elements.list.appendChild(li);
+  });
+
+  const activeCount = todos.filter(t => !t.done).length;
+  elements.count.textContent = `${activeCount} item${activeCount !== 1 ? 's' : ''} left`;
+}
+</script>
+
+</body>
+</html>
